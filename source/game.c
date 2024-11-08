@@ -14,12 +14,15 @@ bool keys[KEY_COUNT];
 
 //Global snake variable
 Snake snake = {{0, 0}, WINDOW_W * WINDOW_H};
+int amountOfSnakeParts = 0;
 
 //5 fps
-#define FRAME_DELAY 75 //Snake Speed CALCULATION: 1000 / TARGET_FPS = FRAME_DELAY
+#define FRAME_DELAY 1 //Key input speed
+
+#define SNAKE_MOVE_DELAY 75 //Snake Speed CALCULATION: 1000 / TARGET_FPS = FRAME_DELAY
 
 //Grid of the apples and snake
-int sizes = 25;
+int sizes = 50;
 
 //Players spawns inside a random area, this is the padding in the grid from the very edge of the window.
 #define SPAWN_PADDING_MULTIPLIER 1;
@@ -31,12 +34,16 @@ int padding;
 Vector2 apples[AMOUNT_OF_APPLES];
 
 Color appleColor = {0, 0, 255};
+
 Color snakeColor = {0, 255, 0};
+Color headColor = {255, 0, 0};
 
 //Extra setup
+#define center {WINDOW_W / 2, WINDOW_H / 2};
 Vector2 emptyPos = EMPTY;
 
 bool gameStarted = false;
+bool colorsNormalized = false;
 
 //Initialize game variables
 void startNewGame()
@@ -46,6 +53,8 @@ void startNewGame()
   padding = sizes * SPAWN_PADDING_MULTIPLIER;
 
   Vector2 spawnDir = RIGHT;
+
+  amountOfSnakeParts = 0;
 
   //Initialize snake position values
   int i = 0;
@@ -57,11 +66,21 @@ void startNewGame()
 
   Vector2 randomWindowPos = RandomWindowPosition(padding, sizes);
 
-  snake.positions[0] = randomWindowPos;
+  //snake.positions[0] = randomWindowPos;
+
+  Vector2 cen = center;
+
+  snake.positions[0] = cen;
   snake.direction = spawnDir;
 
-  Color normalizedColor = NormalizeColor(snakeColor);
-  snakeColor = normalizedColor;
+  if(!colorsNormalized)
+  {
+    Color normalizedColor = NormalizeColor(snakeColor);
+    snakeColor = normalizedColor;
+
+    normalizedColor = NormalizeColor(headColor);
+    headColor = normalizedColor;
+  }
 
   //Initialize apples
   for (i = 0; i < AMOUNT_OF_APPLES; i++)
@@ -69,8 +88,13 @@ void startNewGame()
     apples[i] = emptyPos;
   }
 
-  Color normalizedColor1 = NormalizeColor(appleColor);
-  appleColor = normalizedColor1;
+  if(!colorsNormalized)
+  {
+    Color normalizedColor1 = NormalizeColor(appleColor);
+    appleColor = normalizedColor1;
+  }
+
+  colorsNormalized = true;
 }
 
 //Window initialization
@@ -97,8 +121,8 @@ void display()
   {
     if (apples[i].x == emptyPos.x && apples[i].y == emptyPos.y)
     {
+      //Soon to be removed because i dont wanna be generating the apple positions on the display function
       Vector2 appleSpawn = RandomWindowPosition(padding, sizes);
-
       apples[i] = appleSpawn;
 
       glVertex2f(appleSpawn.x, appleSpawn.y);  //Bottom left corner
@@ -122,6 +146,9 @@ void display()
   {
     if (snake.positions[i].x != emptyPos.x && snake.positions[i].y != emptyPos.y)
     {
+      if (i != 0) glColor3f(snakeColor.r, snakeColor.g, snakeColor.b); //Body color
+      else glColor3f(headColor.r, headColor.g, headColor.b); //Special head color
+
       glVertex2f(snake.positions[i].x, snake.positions[i].y); 
       glVertex2f(snake.positions[i].x + sizes, snake.positions[i].y); 
       glVertex2f(snake.positions[i].x + sizes, snake.positions[i].y + sizes);  
@@ -152,74 +179,142 @@ Vector2 Down = DOWN;
 Vector2 Left = LEFT;
 Vector2 Right = RIGHT;
 
-//Idle update
-void update()
+bool moveSnake = false;
+
+//Snake movement update
+void snakeMovement()
 {
-  if (!gameStarted) startNewGame();
-
-  //Handle key input to set the snakes direction
-  if (keys['w'])
-  {
-    snake.direction = Up;
-  }
-  if (keys['s']) 
-  {
-    snake.direction = Down;
-  }
-  if (keys['a']) 
-  {
-    snake.direction = Left;
-  }
-  if (keys['d']) 
-  {
-    snake.direction = Right;
-  }
-
   //Movement calculations
+
   int nextX = snake.positions[0].x + (snake.direction.x * sizes);
   int nextY = snake.positions[0].y + (snake.direction.y * sizes);
 
-  printf("X: %d", nextX);
-  printf("Y: %d\n", nextY);
+  /* Collision Detection */
 
   Vector2 newHeadPosition = {nextX, nextY};
 
   int i = 0;
+
+  bool hitApple = false;
+
+  //Check if hitting own body
+  for(i = 0; i < WINDOW_W * WINDOW_H; i++)
+  {
+    if(snake.positions[i].x != -1)
+    {
+      if(nextX == snake.positions[i].x && nextY == snake.positions[i].y)
+      {
+        //To ignore the apple collision detection
+        hitApple = true;
+
+        startNewGame();
+      }
+    }
+    else break;
+  }
+
+  //Check if head is outside window
+  if(nextX > WINDOW_W || nextY > WINDOW_H || nextY < 0 || nextX < 0)
+  {
+    //To ignore the apple collision detection
+    hitApple = true;
+
+    startNewGame();
+  }
 
   //Apple detection
   for(i = 0; i < AMOUNT_OF_APPLES; i++)
   {
     if(nextX == apples[i].x && nextY == apples[i].y)
     {
-      printf("Apple collision! Inserting position: (%f, %f)\n", apples[i].x, apples[i].y);
-
       InsertPosition(snake.positions, apples[i], 0, WINDOW_W * WINDOW_H);
 
-      printf("New head position after insert: (%f, %f)\n", apples[i].x, apples[i].y);
-
-      newHeadPosition = snake.positions[0];
+      amountOfSnakeParts++;
+      hitApple = true;
 
       apples[i] = emptyPos;
+
+      //generate new apple position
 
       break;
     }
   }
 
-  //Move body
-  for(i = 1; i < WINDOW_W * WINDOW_H; i++)
-  {
-    snake.positions[i - 1] = snake.positions[i];
+  /* Snake movement */
 
-    if (snake.positions[i].x == -1 && snake.positions[i].y == -1) break;
+  if (!hitApple)
+  {
+    //Move body
+    for(i = amountOfSnakeParts; i > 0; i--)
+    {
+      snake.positions[i] = snake.positions[i - 1];
+    }
+
+    snake.positions[0] = newHeadPosition;
+  }
+}
+
+//Idle update
+void update()
+{
+  if (!gameStarted) startNewGame();
+
+  if (moveSnake)
+  {
+    snakeMovement();
+
+    moveSnake = false;
   }
 
-  snake.positions[0] = newHeadPosition;
+  //Handle key input to set the snakes direction
+  if (keys['w'] || keys['W'])
+  {
+    if (snake.direction.x != Down.x && snake.direction.y != Down.y && amountOfSnakeParts > 0)
+    {
+      snake.direction = Up;
+    }
+    else if (amountOfSnakeParts == 0) snake.direction = Up;
+  }
+  else if (keys['s'] || keys['S']) 
+  {
+    if (snake.direction.x != Up.x && snake.direction.y != Up.y && amountOfSnakeParts > 0)
+    {
+      snake.direction = Down;
+    }
+    else if (amountOfSnakeParts == 0) snake.direction = Down;
+  }
+  else if (keys['a'] || keys['A']) 
+  {
+    if (snake.direction.x != Right.x && snake.direction.y != Right.y && amountOfSnakeParts > 0)
+    {
+      snake.direction = Left;
+    }
+    else if (amountOfSnakeParts == 0) snake.direction = Left;
+  }
+  else if (keys['d'] || keys['D'])
+  {
+    if (snake.direction.x != Left.x && snake.direction.y != Left.y && amountOfSnakeParts > 0)
+    {
+      snake.direction = Right;
+    }
+    else if (amountOfSnakeParts == 0) snake.direction = Right;
+  }
 
   //Fire display update
   glutPostRedisplay();
 
   glutTimerFunc(FRAME_DELAY, update, 0); // Reschedule update after FRAME_DELAY ms
 }
+
+void snakeMoveTimer(int value)
+{
+    // Trigger snake movement
+    moveSnake = true;
+
+    // Re-set the timer for the next move
+    glutTimerFunc(SNAKE_MOVE_DELAY, snakeMoveTimer, 0);
+}
+
 
 //Keeps window locked at all times to prevent from making window bigger during gameplay
 void windowResize(int width, int height)
@@ -251,7 +346,9 @@ int main(int argc, char** argv)
 
   glutReshapeFunc(windowResize);
 
-  glutTimerFunc(FRAME_DELAY, update, 0); //Make the update function run based on the frame delay
+  glutTimerFunc(SNAKE_MOVE_DELAY, snakeMoveTimer, 0); //Make the snake function run based on the frame delay
+
+  glutTimerFunc(FRAME_DELAY, update, 0);
 
   glutMainLoop();      
   return 0;   

@@ -28,13 +28,6 @@ extern Vector2 emptyPos;
 
 void InsertPosition(Vector2 positions[], Vector2 insertedPosition, int index, int totalPositions)
 {
-    // Ensure index is within bounds
-    if (index < 0 || index >= totalPositions)
-    {
-        printf("Invalid index for insertion!\n");
-        return;
-    }
-
     Vector2 lastPos = insertedPosition;
 
     for (int i = index; i < totalPositions; i++)
@@ -42,10 +35,10 @@ void InsertPosition(Vector2 positions[], Vector2 insertedPosition, int index, in
         // Check if the current position is empty
         if (positions[i].x == emptyPos.x && positions[i].y == emptyPos.y)
         {
-            // If an empty spot is found, insert the position here
+            // If an empty spot is found, insert the last position here
             positions[i] = lastPos;
-            printf("Inserted position at index %d: (%f, %f)\n", i, insertedPosition.x, insertedPosition.y);
-            return;  // Exit after successful insertion
+
+            break;
         }
         else
         {
@@ -55,9 +48,6 @@ void InsertPosition(Vector2 positions[], Vector2 insertedPosition, int index, in
             lastPos = temp;
         }
     }
-
-    // If we get through the entire loop, it means the array was full, and no empty spot was found
-    printf("Array full, unable to insert position.\n");
 }
 
 int RandomInt(int min, int max) 
