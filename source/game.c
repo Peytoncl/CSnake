@@ -127,8 +127,9 @@ void display()
   {
     if (apples[i].x == emptyPos.x && apples[i].y == emptyPos.y)
     {
-      //Soon to be removed because i dont wanna be generating the apple positions on the display function
-      Vector2 appleSpawn = RandomWindowPosition(padding, sizes);
+
+      //Recursive function to generate a new apple spawn thats not inside the snakes body, this is a sanity check
+      Vector2 appleSpawn = RandomAppleSpawn(padding, GRID_SIZE, snake.amountOfSnakeParts, snake.positions);
       apples[i] = appleSpawn;
 
       glVertex2f(appleSpawn.x, appleSpawn.y);  //Bottom left corner
@@ -249,7 +250,7 @@ void snakeMovement()
 
       hitApple = true;
 
-      //generate new apple position
+      //Recursive function to generate a new apple spawn thats not inside the snakes body
       apples[i] = RandomAppleSpawn(padding, GRID_SIZE, snake.amountOfSnakeParts, snake.positions);
 
       break;
