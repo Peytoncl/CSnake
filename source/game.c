@@ -73,6 +73,7 @@ void startNewGame()
 
   //snake.positions[0] = randomWindowPos;
 
+  //This is not correct and the snake is not spawning in the middle of the window
   Vector2 cen = {sizes, sizes};
 
   snake.positions[0] = cen;
