@@ -19,7 +19,7 @@ typedef struct
 typedef struct
 {
     Vector2 direction;
-    Vector2 positions[WINDOW_W * WINDOW_H];
+    Vector2 positions[WINDOW_W * WINDOW_H]; //Change to account for pixels in grid instead of running on straight pixels of resolution size
 } Snake;
 
 /* Math functions relating to the graphics */
