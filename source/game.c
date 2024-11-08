@@ -12,21 +12,27 @@
 #define KEY_COUNT 256 
 bool keys[KEY_COUNT];
 
-//Global snake variable
-Snake snake = {{0, 0}, WINDOW_W * WINDOW_H};
-int amountOfSnakeParts = 0;
+#define FRAME_DELAY 25 //Key input speed (same calc as snake speed)
 
-//5 fps
-#define FRAME_DELAY 1 //Key input speed
+//200 Easy
+//75 Normal
+//50 Hard
+#define SNAKE_MOVE_DELAY 75 //Snake Speed CALCULATION: 1000 / TARGET_FPS = FRAME_DELAY ms
 
-#define SNAKE_MOVE_DELAY 75 //Snake Speed CALCULATION: 1000 / TARGET_FPS = FRAME_DELAY
+//140 Easy (Actually kinda hard)
+//70 Normal (In the middle)
+//35 Hard (Preferred)
 
-//Grid of the apples and snake
-int sizes = 50;
+//Grid of the apples and snake, needs to be along a 70x grid
+#define GRID_SIZE 35
+int sizes = GRID_SIZE;
 
 //Players spawns inside a random area, this is the padding in the grid from the very edge of the window.
-#define SPAWN_PADDING_MULTIPLIER 1;
+#define SPAWN_PADDING_MULTIPLIER 0;
 int padding;
+
+//Global snake variable
+Snake snake = {{0, 0}, WINDOW_W / GRID_SIZE * WINDOW_H / GRID_SIZE, 0};
 
 //Max amount of apples to be spawned at once
 #define AMOUNT_OF_APPLES 2
@@ -39,7 +45,6 @@ Color snakeColor = {0, 255, 0};
 Color headColor = {255, 0, 0};
 
 //Extra setup
-#define center {WINDOW_W / 2, WINDOW_H / 2};
 Vector2 emptyPos = EMPTY;
 
 bool gameStarted = false;
@@ -52,14 +57,14 @@ void startNewGame()
 
   padding = sizes * SPAWN_PADDING_MULTIPLIER;
 
-  Vector2 spawnDir = RIGHT;
+  Vector2 spawnDir = emptyPos;
 
-  amountOfSnakeParts = 0;
+  snake.amountOfSnakeParts = 0;
 
   //Initialize snake position values
   int i = 0;
 
-  for (i = 0; i < WINDOW_W * WINDOW_H; i++)
+  for (i = 0; i < WINDOW_W / GRID_SIZE * WINDOW_H / GRID_SIZE; i++)
   {
     snake.positions[i] = emptyPos;
   }
@@ -68,7 +73,7 @@ void startNewGame()
 
   //snake.positions[0] = randomWindowPos;
 
-  Vector2 cen = center;
+  Vector2 cen = {sizes, sizes};
 
   snake.positions[0] = cen;
   snake.direction = spawnDir;
@@ -184,7 +189,10 @@ bool moveSnake = false;
 //Snake movement update
 void snakeMovement()
 {
-  //Movement calculations
+  /* Movement calculations */
+
+  //If player hasnt pressed a key yet then freeze them in place
+  if (snake.direction.x == -1 && snake.direction.y == -1) return;
 
   int nextX = snake.positions[0].x + (snake.direction.x * sizes);
   int nextY = snake.positions[0].y + (snake.direction.y * sizes);
@@ -202,7 +210,7 @@ void snakeMovement()
   {
     if(snake.positions[i].x != -1)
     {
-      if(nextX == snake.positions[i].x && nextY == snake.positions[i].y)
+      if(nextX == snake.positions[i].x && nextY == snake.positions[i].y && i != snake.amountOfSnakeParts)
       {
         //To ignore the apple collision detection
         hitApple = true;
@@ -214,7 +222,7 @@ void snakeMovement()
   }
 
   //Check if head is outside window
-  if(nextX > WINDOW_W || nextY > WINDOW_H || nextY < 0 || nextX < 0)
+  if(nextX >= WINDOW_W || nextY >= WINDOW_H || nextY < 0 || nextX < 0)
   {
     //To ignore the apple collision detection
     hitApple = true;
@@ -227,14 +235,21 @@ void snakeMovement()
   {
     if(nextX == apples[i].x && nextY == apples[i].y)
     {
+      //Add new position to front of snake positions to essentially create a new head
       InsertPosition(snake.positions, apples[i], 0, WINDOW_W * WINDOW_H);
 
-      amountOfSnakeParts++;
+      snake.amountOfSnakeParts++;
+
+      //When the player beats the game
+      if(snake.amountOfSnakeParts >= WINDOW_W / GRID_SIZE * WINDOW_H / GRID_SIZE)
+      {
+        startNewGame();
+      }
+
       hitApple = true;
 
-      apples[i] = emptyPos;
-
       //generate new apple position
+      apples[i] = RandomAppleSpawn(padding, GRID_SIZE, snake.amountOfSnakeParts, snake.positions);
 
       break;
     }
@@ -245,7 +260,7 @@ void snakeMovement()
   if (!hitApple)
   {
     //Move body
-    for(i = amountOfSnakeParts; i > 0; i--)
+    for(i = snake.amountOfSnakeParts; i > 0; i--)
     {
       snake.positions[i] = snake.positions[i - 1];
     }
@@ -266,38 +281,52 @@ void update()
     moveSnake = false;
   }
 
-  //Handle key input to set the snakes direction
-  if (keys['w'] || keys['W'])
+  //Handle key input to set the snakes direction and stop double movement
+  bool moved = false;
+
+  // Vertical movement (W and S keys)
+  if ((keys['w'] || keys['W']) && !moved || keys['W'] && snake.amountOfSnakeParts == 0)
   {
-    if (snake.direction.x != Down.x && snake.direction.y != Down.y && amountOfSnakeParts > 0)
+    // Prevent moving up if currently moving down
+    if (snake.direction.y != Down.y && snake.amountOfSnakeParts != 0)
     {
-      snake.direction = Up;
+        snake.direction = Up;
+        moved = true; 
     }
-    else if (amountOfSnakeParts == 0) snake.direction = Up;
+    else if (snake.amountOfSnakeParts == 0) snake.direction = Up;
   }
-  else if (keys['s'] || keys['S']) 
+  else if ((keys['s'] || keys['S']) && !moved)
   {
-    if (snake.direction.x != Up.x && snake.direction.y != Up.y && amountOfSnakeParts > 0)
+    // Prevent moving down if currently moving up
+    if (snake.direction.y != Up.y && snake.amountOfSnakeParts != 0)
     {
-      snake.direction = Down;
+        snake.direction = Down;
+        moved = true; 
     }
-    else if (amountOfSnakeParts == 0) snake.direction = Down;
+    else if (snake.amountOfSnakeParts == 0) snake.direction = Down;
   }
-  else if (keys['a'] || keys['A']) 
+
+  // Horizontal movement (A and D keys)
+  if (!moved || snake.amountOfSnakeParts == 0) // Only allow horizontal movement if no vertical movement happened or if youre on first snake block
   {
-    if (snake.direction.x != Right.x && snake.direction.y != Right.y && amountOfSnakeParts > 0)
+    if ((keys['a'] || keys['A']))
     {
-      snake.direction = Left;
+      if (snake.direction.x != Right.x && snake.amountOfSnakeParts != 0)
+      {
+        snake.direction = Left;
+        moved = true;
+      }
+      else if (snake.amountOfSnakeParts == 0) snake.direction = Left;
     }
-    else if (amountOfSnakeParts == 0) snake.direction = Left;
-  }
-  else if (keys['d'] || keys['D'])
-  {
-    if (snake.direction.x != Left.x && snake.direction.y != Left.y && amountOfSnakeParts > 0)
+    else if ((keys['d'] || keys['D']))
     {
-      snake.direction = Right;
+      if (snake.direction.x != Left.x && snake.amountOfSnakeParts != 0)
+      {
+        snake.direction = Right;
+        moved = true; 
+      }
+      else if (snake.amountOfSnakeParts == 0) snake.direction = Right;
     }
-    else if (amountOfSnakeParts == 0) snake.direction = Right;
   }
 
   //Fire display update
@@ -308,11 +337,11 @@ void update()
 
 void snakeMoveTimer(int value)
 {
-    // Trigger snake movement
-    moveSnake = true;
+  // Trigger snake movement
+  moveSnake = true;
 
-    // Re-set the timer for the next move
-    glutTimerFunc(SNAKE_MOVE_DELAY, snakeMoveTimer, 0);
+  // Re-set the timer for the next move
+  glutTimerFunc(SNAKE_MOVE_DELAY, snakeMoveTimer, 0);
 }
 
 

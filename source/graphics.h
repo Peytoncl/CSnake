@@ -20,6 +20,7 @@ typedef struct
 {
     Vector2 direction;
     Vector2 positions[WINDOW_W * WINDOW_H]; //Change to account for pixels in grid instead of running on straight pixels of resolution size
+    int amountOfSnakeParts;
 } Snake;
 
 /* Math functions relating to the graphics */
@@ -67,11 +68,13 @@ Vector2 RandomVector2(Vector2 min, Vector2 max)
     return out;
 }
 
+//Gets a random Vector2 within the screen with a certain padding and grid size
 Vector2 RandomWindowPosition(int padding, int gridSize)
 {
     if (gridSize <= 0) {
         printf("Invalid grid size! Grid size must be greater than 0.\n");
-        return (Vector2){0, 0}; // Return default invalid position
+        
+        return emptyPos;
     }
 
     int intMin = padding; //Adjust padding to be the minimum boundary
@@ -91,6 +94,23 @@ Vector2 RandomWindowPosition(int padding, int gridSize)
     if (randomY >= intMaxH) randomY = intMaxH - gridSize;
 
     Vector2 randomPos = {randomX, randomY};
+
+    return randomPos;
+}
+
+//Recursive function to get an apple spawn that isnt overlapping with the snake
+Vector2 RandomAppleSpawn(int padding, int gridSize, int positionSize, Vector2 positions[])
+{
+    Vector2 randomPos = RandomWindowPosition(padding, gridSize);
+
+    int i = 0;
+    for(i = 0; i <= positionSize; i++)
+    {
+        if(positions[i].x == randomPos.x && positions[i].y == randomPos.y)
+        {
+            return RandomAppleSpawn(padding, gridSize, positionSize, positions);
+        }
+    }
 
     return randomPos;
 }
